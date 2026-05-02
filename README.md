@@ -15,7 +15,7 @@ Codex 运维技能集合。每个技能位于仓库根目录下的独立文件�
 - 默认先运行本地 preflight，不登录 Jumpserver，不进入任何服务器，不执行远端命令。
 - 支持检查 `ssh`、`zsh`、`expect`、`totp`、Python 依赖、`scripts/login_jump.exp`、`~/.ssh/config` 中的 `Host Jumpserver`。
 - 支持用 `scripts/init_wizard.py` 逐项初始化缺失依赖。
-- 支持用 `scripts/jumpserver_exec.py --target ... --cmd ...` 在唯一匹配的 Linux 资产上执行显式命令。
+- 支持用 `scripts/jumpserver_exec.py --target ... --cmd ...` 先通过 Jumpserver 关键字搜索目标，必要时再收集资产分页，在唯一匹配的 Linux 资产上执行显式命令。
 - 不缓存密码、不保存 OTP、不提交 TOTP 种子值，不绕过 Jumpserver 审计。
 
 ### 安装到本地 Codex 技能目录
@@ -77,5 +77,15 @@ python scripts/init_wizard.py --apply
 ```text
 使用 $jumpserver-automation 登录目标 <目标IP或名称>，执行 hostname; whoami
 ```
+
+目标匹配策略：
+
+- 非 IP 目标默认先输入 `--target` 到 Jumpserver `[Host]>` 搜索，例如 `example-app`。
+- 如果 Jumpserver 直接进入唯一资产，脚本会继续做主机确认并执行显式命令。
+- 如果 Jumpserver 返回候选表，脚本会解析候选并只在唯一命中时继续。
+- 如果搜索没有唯一结果，脚本会执行 `r`、`p` 收集资产列表后在本地匹配 `--target`。
+- 如果页脚显示还有下一页，会自动输入 `n` 继续收集，默认最多 `50` 页；可用 `--max-pages` 调整。
+- 只有唯一命中时才输入资产 `ID` 登录。
+- 如果命中多个资产，会输出候选表并停止，需要改用精确 IP、精确 ID 或更具体的名称/备注。
 
 涉及删除、重启、替换配置、批量操作等生产变更时，应先确认目标主机、影响范围、操作窗口和回滚方案。同时检查 `NO_PROXY` 是否包含内网地址、Kubernetes Service 网段、`.local`、`.internal`、`.svc`、`.cluster.local`、localhost 和 VPC/private CIDR，避免代理链路影响内网访问。

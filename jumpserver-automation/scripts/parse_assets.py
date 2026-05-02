@@ -81,9 +81,9 @@ def parse_footer(text: str) -> dict[str, int | None]:
         "total": r"总数量\s*[:：]\s*(\d+)",
     }
     for key, pattern in patterns.items():
-        match = re.search(pattern, text)
-        if match:
-            footer[key] = int(match.group(1))
+        matches = re.findall(pattern, text)
+        if matches:
+            footer[key] = int(matches[-1])
     return footer
 
 

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pexpect
 
-from parse_assets import markdown_table, match_assets, parse_assets
+from parse_assets import Asset, is_ip, markdown_table, match_assets, parse_assets
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,12 +61,49 @@ def expect_any(child: pexpect.spawn, timeout: int) -> int:
     return child.expect(PROMPTS, timeout=timeout)
 
 
-def collect_asset_page(child: pexpect.spawn, timeout: int) -> str:
+def read_asset_page(child: pexpect.spawn, timeout: int) -> str:
+    child.expect([r"\[Host\]>", r"Opt>", pexpect.TIMEOUT], timeout=timeout)
+    return f"{child.before}{child.after if isinstance(child.after, str) else ''}"
+
+
+def collect_asset_pages(child: pexpect.spawn, timeout: int, max_pages: int) -> list[Asset]:
+    collected: list[Asset] = []
+    seen_keys: set[tuple[str, str, str]] = set()
+
     child.sendline("r")
     expect_any(child, timeout)
     child.sendline("p")
-    child.expect([r"\[Host\]>", r"Opt>", pexpect.TIMEOUT], timeout=timeout)
-    return f"{child.before}{child.after if isinstance(child.after, str) else ''}"
+
+    for page_number in range(1, max_pages + 1):
+        page = read_asset_page(child, timeout)
+        assets, footer = parse_assets(page)
+        for asset in assets:
+            key = (asset.id, asset.name, asset.address)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                collected.append(asset)
+
+        current = footer.get("page")
+        total = footer.get("total_pages")
+        if not current or not total or current >= total:
+            break
+
+        print(f"INFO collecting next Jumpserver asset page: {current + 1}/{total}", file=sys.stderr)
+        child.sendline("n")
+    else:
+        print(f"WARN stopped after --max-pages={max_pages}; results may be incomplete.", file=sys.stderr)
+
+    return collected
+
+
+def search_target(child: pexpect.spawn, target: str, timeout: int) -> tuple[str, list[Asset]]:
+    child.sendline(target)
+    child.expect([r"\[Host\]>", r"Opt>", r"[$#]\s*$", pexpect.TIMEOUT], timeout=timeout)
+    output = f"{child.before}{child.after if isinstance(child.after, str) else ''}"
+    if isinstance(child.after, str) and re.search(r"[$#]\s*$", child.after):
+        return "logged_in", []
+    assets, _ = parse_assets(output)
+    return "candidates", assets
 
 
 def run_remote_command(child: pexpect.spawn, command: str, timeout: int) -> int:
@@ -89,6 +126,13 @@ def main() -> int:
     parser.add_argument("--entry-command", help="Optional login command. Use 'jump' to force the shell alias.")
     parser.add_argument("--skip-preflight", action="store_true", help="Skip prerequisite checks.")
     parser.add_argument("--timeout", type=int, default=30, help="pexpect timeout in seconds.")
+    parser.add_argument("--max-pages", type=int, default=50, help="Maximum Jumpserver asset pages to collect. Defaults to 50.")
+    parser.add_argument(
+        "--search-first",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Type --target at the Jumpserver [Host]> prompt before falling back to paginated asset collection. Defaults to true.",
+    )
     args = parser.parse_args()
 
     if re.search(r"\b(rm\s+-rf|reboot|shutdown|mkfs|dd\s+if=|systemctl\s+restart)\b", args.cmd):
@@ -100,8 +144,23 @@ def main() -> int:
     child = spawn_entry(args.entry_command, args.host, args.totp_profile, args.timeout)
     try:
         expect_any(child, args.timeout)
-        page = collect_asset_page(child, args.timeout)
-        assets, footer = parse_assets(page)
+        if args.search_first and not is_ip(args.target):
+            status, candidates = search_target(child, args.target, args.timeout)
+            if status == "logged_in":
+                return run_remote_command(child, args.cmd, args.timeout)
+            matches = match_assets(candidates, args.target)
+            if len(matches) == 1:
+                child.sendline(matches[0].id)
+                child.expect([r"[$#]\s*$", pexpect.TIMEOUT], timeout=args.timeout)
+                return run_remote_command(child, args.cmd, args.timeout)
+            if len(matches) > 1:
+                print("Jumpserver search matched multiple assets; refusing to choose silently.", file=sys.stderr)
+                print(markdown_table(matches), file=sys.stderr)
+                return 2
+
+            print("INFO Jumpserver search did not uniquely match; falling back to paginated asset collection.", file=sys.stderr)
+
+        assets = collect_asset_pages(child, args.timeout, args.max_pages)
         matches = match_assets(assets, args.target)
 
         if len(matches) != 1:
@@ -109,9 +168,7 @@ def main() -> int:
                 print("Matched multiple assets; refusing to choose silently.", file=sys.stderr)
                 print(markdown_table(matches), file=sys.stderr)
             else:
-                print("No asset matched. Refresh permissions or collect more pages.", file=sys.stderr)
-            if footer.get("page") and footer.get("total_pages") and footer["page"] < footer["total_pages"]:
-                print("More Jumpserver pages are available; collect next page or refine target.", file=sys.stderr)
+                print("No asset matched after collecting Jumpserver asset pages. Refine target or verify RBAC.", file=sys.stderr)
             return 2
 
         child.sendline(matches[0].id)

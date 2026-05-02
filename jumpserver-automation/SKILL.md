@@ -12,7 +12,7 @@ Use this skill to initialize and operate a Linux/macOS Jumpserver workflow:
 1. Validate local prerequisites.
 2. Use `totp jumpserver` and `ssh Jumpserver` through `scripts/login_jump.exp`.
 3. Refresh and parse Jumpserver assets.
-4. Select exactly one target asset.
+4. Collect Jumpserver asset pages and select exactly one target asset.
 5. Execute a user-provided explicit command with `scripts/jumpserver_exec.py --cmd`.
 
 Windows is not the primary target. For Windows users, prefer WSL Ubuntu and follow the Linux steps.
@@ -196,7 +196,23 @@ source .venv/bin/activate
 python scripts/jumpserver_exec.py --target <ip-or-name-or-remark> --cmd 'hostname; whoami'
 ```
 
-The script logs in, runs `r` and `p`, parses assets, requires exactly one match, enters the asset ID, verifies host identity, then runs `--cmd`.
+The script logs in, searches or collects assets, requires exactly one match, enters the asset ID when needed, verifies host identity, then runs `--cmd`.
+
+Search handling:
+
+- For non-IP targets, the script defaults to `--search-first`.
+- It types the target keyword, for example `example-app`, at the Jumpserver `[Host]>` prompt first.
+- If Jumpserver directly logs into a unique asset, continue with host verification and `--cmd`.
+- If Jumpserver returns a candidate table, parse it locally and only continue when exactly one asset matches.
+- If search does not uniquely match, fall back to paginated asset collection unless multiple candidates were already returned.
+- Use `--no-search-first` to skip Jumpserver keyword search and collect pages directly.
+
+Pagination handling:
+
+- If search fallback is needed, run `r`, `p`, then parse the footer fields such as `页码` and `总页数`.
+- If more pages exist, send `n` and collect the next page.
+- Continue until all pages are collected or `--max-pages` is reached.
+- Default `--max-pages` is `50`.
 
 ## Matching Rules
 
@@ -209,6 +225,7 @@ Matching order:
 3. Case-insensitive substring across ID, name, address, remark, and platform.
 
 Do not silently choose from multiple matches.
+If multiple assets match the target, show the candidate table and ask the user to narrow the target by exact IP, exact ID, or a more specific name/remark.
 
 ## Risk And Rollback
 
