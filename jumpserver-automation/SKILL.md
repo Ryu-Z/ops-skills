@@ -200,7 +200,7 @@ The script logs in, searches or collects assets, requires exactly one match, ent
 
 Search handling:
 
-- For non-IP targets, the script defaults to `--search-first`.
+- The script defaults to `--search-first` for names, full IP addresses, partial IP prefixes, and assets whose names are IP addresses.
 - It types the target keyword, for example `example-app`, at the Jumpserver `[Host]>` prompt first.
 - If Jumpserver directly logs into a unique asset, continue with host verification and `--cmd`.
 - If Jumpserver returns a candidate table, parse it locally and only continue when exactly one asset matches.
@@ -226,6 +226,7 @@ Matching order:
 
 Do not silently choose from multiple matches.
 If multiple assets match the target, show the candidate table and ask the user to narrow the target by exact IP, exact ID, or a more specific name/remark.
+For partial IP input such as `192.0.2`, expect multiple candidates. Show them and require a narrower target unless Jumpserver returns exactly one asset.
 
 ## Risk And Rollback
 

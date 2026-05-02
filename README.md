@@ -80,12 +80,13 @@ python scripts/init_wizard.py --apply
 
 目标匹配策略：
 
-- 非 IP 目标默认先输入 `--target` 到 Jumpserver `[Host]>` 搜索，例如 `example-app`。
+- 默认先输入 `--target` 到 Jumpserver `[Host]>` 搜索；名称、完整 IP、IP 前缀、名称本身是 IP 的资产都走这个路径。
+- 示例：`example-app`、`192.0.2.10`、`192.0.2` 都可以作为搜索输入。
 - 如果 Jumpserver 直接进入唯一资产，脚本会继续做主机确认并执行显式命令。
 - 如果 Jumpserver 返回候选表，脚本会解析候选并只在唯一命中时继续。
 - 如果搜索没有唯一结果，脚本会执行 `r`、`p` 收集资产列表后在本地匹配 `--target`。
 - 如果页脚显示还有下一页，会自动输入 `n` 继续收集，默认最多 `50` 页；可用 `--max-pages` 调整。
 - 只有唯一命中时才输入资产 `ID` 登录。
-- 如果命中多个资产，会输出候选表并停止，需要改用精确 IP、精确 ID 或更具体的名称/备注。
+- 如果命中多个资产，会输出候选表并停止；例如输入 `192.0.2` 这类 IP 前缀通常会匹配多台机器，需要改用精确 IP、精确 ID 或更具体的名称/备注。
 
 涉及删除、重启、替换配置、批量操作等生产变更时，应先确认目标主机、影响范围、操作窗口和回滚方案。同时检查 `NO_PROXY` 是否包含内网地址、Kubernetes Service 网段、`.local`、`.internal`、`.svc`、`.cluster.local`、localhost 和 VPC/private CIDR，避免代理链路影响内网访问。

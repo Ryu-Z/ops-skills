@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pexpect
 
-from parse_assets import Asset, is_ip, markdown_table, match_assets, parse_assets
+from parse_assets import Asset, markdown_table, match_assets, parse_assets
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -144,7 +144,7 @@ def main() -> int:
     child = spawn_entry(args.entry_command, args.host, args.totp_profile, args.timeout)
     try:
         expect_any(child, args.timeout)
-        if args.search_first and not is_ip(args.target):
+        if args.search_first:
             status, candidates = search_target(child, args.target, args.timeout)
             if status == "logged_in":
                 return run_remote_command(child, args.cmd, args.timeout)
