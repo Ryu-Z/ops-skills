@@ -39,6 +39,11 @@ python3 scripts/preflight_check.py
 ```
 
 If a prerequisite is missing, ask about one item at a time. Do not ask for all fields at once.
+If `preflight_check.py` reports `FAIL python dependency pexpect`, do not silently install packages. Ask the user for permission, then run the initializer with apply mode:
+
+```bash
+python3 scripts/init_wizard.py --apply
+```
 
 For an interactive dry-run or setup flow:
 

@@ -17,6 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGIN_SCRIPT = ROOT / "scripts" / "login_jump.exp"
+VENV_PYTHON = ROOT / ".venv" / "bin" / "python"
 
 
 @dataclass
@@ -56,7 +57,22 @@ def check_login_script() -> Result:
 def check_pexpect() -> Result:
     if importlib.util.find_spec("pexpect"):
         return Result("OK", "python dependency pexpect", "available")
-    return Result("FAIL", "python dependency pexpect", "missing; run python -m pip install -r requirements.txt")
+    if VENV_PYTHON.exists():
+        completed = run(
+            [str(VENV_PYTHON), "-c", "import pexpect"],
+            timeout=10,
+        )
+        if completed.returncode == 0:
+            return Result(
+                "FAIL",
+                "python dependency pexpect",
+                f"missing in current interpreter; rerun with {VENV_PYTHON} scripts/preflight_check.py",
+            )
+    return Result(
+        "FAIL",
+        "python dependency pexpect",
+        "missing; ask permission, then run python3 scripts/init_wizard.py --apply",
+    )
 
 
 def check_ssh_config(host: str) -> Result:
@@ -136,7 +152,9 @@ def print_install_hint(name: str) -> None:
         print("  sudo chmod +x totp")
         print("  sudo mv totp /usr/local/bin/")
     elif name == "python dependency pexpect":
-        print("Python venv setup:")
+        print("Python dependency setup. Ask the user before running:")
+        print("  python3 scripts/init_wizard.py --apply")
+        print("Direct venv setup:")
         print("  python3 -m venv .venv")
         print("  source .venv/bin/activate")
         print("  python -m pip install -r requirements.txt")

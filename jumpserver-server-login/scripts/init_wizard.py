@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGIN_SCRIPT = ROOT / "scripts" / "login_jump.exp"
+VENV_PYTHON = ROOT / ".venv" / "bin" / "python"
 
 
 def run(command: str, apply: bool) -> None:
@@ -87,6 +88,19 @@ def install_totp_commands() -> list[str]:
         "sudo chmod +x totp",
         "sudo mv totp /usr/local/bin/",
     ]
+
+
+def venv_has_pexpect() -> bool:
+    if not VENV_PYTHON.exists():
+        return False
+    completed = subprocess.run(
+        [str(VENV_PYTHON), "-c", "import pexpect"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    return completed.returncode == 0
 
 
 def ssh_config_resolves(host: str) -> bool:
@@ -194,7 +208,7 @@ def main() -> int:
         for command in install_totp_commands():
             run(command, args.apply)
 
-    if not (ROOT / ".venv").exists() and yes_no("检测到 Python venv 未初始化，是否创建并安装 requirements.txt？"):
+    if not venv_has_pexpect() and yes_no("检测到 Python venv/pexpect 未就绪，是否创建或修复 .venv 并安装 requirements.txt？"):
         run("python3 -m venv .venv", args.apply)
         run(". .venv/bin/activate && python -m pip install -r requirements.txt", args.apply)
 
