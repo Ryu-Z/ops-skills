@@ -78,6 +78,20 @@ python scripts/init_wizard.py --apply
 使用 $jumpserver-automation 登录目标 <目标IP或名称>，执行 hostname; whoami
 ```
 
+如果目标机上的命令依赖交互式 shell、alias、函数或需要先切换用户，可以这样说：
+
+```text
+使用 $jumpserver-automation 登录目标 <目标IP或名称>，进入交互式 shell，先执行 <alias-or-switch-user>，确认当前用户后再执行 <command>
+```
+
+示例：
+
+```text
+使用 $jumpserver-automation 登录目标 example-app，进入交互式 shell，先执行 appuser alias，确认 whoami 后再执行 kubectl get nodes
+```
+
+这类请求会让技能避免把 alias 当作普通非交互命令直接执行，优先在目标机的交互 shell 里发送命令并确认提示符变化。
+
 目标匹配策略：
 
 - 默认先输入 `--target` 到 Jumpserver `[Host]>` 搜索；名称、完整 IP、IP 前缀、名称本身是 IP 的资产都走这个路径。
