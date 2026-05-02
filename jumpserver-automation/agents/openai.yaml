@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jumpserver Automation"
+  short_description: "初始化 Jumpserver 自动登录环境并执行显式远端命令"
+  default_prompt: "Use $jumpserver-automation to validate Jumpserver automation prerequisites, select a Linux asset, and run an explicit command through Jumpserver."
