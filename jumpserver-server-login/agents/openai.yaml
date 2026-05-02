@@ -1,4 +1,0 @@
-interface:
-  display_name: "Jumpserver Server Login"
-  short_description: "初始化 Jumpserver 自动登录环境并执行显式远端命令"
-  default_prompt: "Use $jumpserver-server-login to validate Jumpserver prerequisites, select a Linux asset, and run an explicit command through Jumpserver."
