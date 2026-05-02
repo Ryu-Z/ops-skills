@@ -1,16 +1,12 @@
 # ops-skills
 
-公开、脱敏、可复用的 Codex 运维技能仓库。
-
-这是一个多技能仓库。每个技能位于仓库根目录下的独立文件夹中，包含自己的 `SKILL.md`、脚本和运行依赖。仓库内容必须保持可公开发布，不应包含真实 Jumpserver 域名、内网资产地址、私钥材料、MFA 种子值、OTP、凭据或个人绝对路径。
+Codex 运维技能集合。每个技能位于仓库根目录下的独立文件夹中，包含自己的 `SKILL.md`、脚本和运行依赖。
 
 ## Skills
 
-| 技能 | 原名称 | 用途 | 主要环境 |
-| --- | --- | --- | --- |
-| `jumpserver-automation` | `jumpserver-server-login` | 初始化 Jumpserver 自动登录环境，通过 `ssh Jumpserver` + `totp jumpserver` 登录 Jumpserver，选择 Linux 资产，并执行显式远端命令 | Linux/macOS，Windows 建议 WSL |
-
-`jumpserver-server-login` 这个名字容易让 `jumpserver` 和 `server` 语义重复；仓库中已更名为 `jumpserver-automation`，更强调“Jumpserver 自动化登录与命令执行”的能力。
+| 技能 | 用途 | 主要环境 |
+| --- | --- | --- |
+| `jumpserver-automation` | 初始化 Jumpserver 自动登录环境，通过 `ssh Jumpserver` + `totp jumpserver` 登录 Jumpserver，选择 Linux 资产，并执行显式远端命令 | Linux/macOS，Windows 建议 WSL |
 
 ## jumpserver-automation
 
