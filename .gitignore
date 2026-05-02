@@ -1,0 +1,11 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+*.pem
+id_rsa*
+.totp*
+totp
+totp_*.tar.gz
+totp_*.zip
