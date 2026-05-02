@@ -35,8 +35,10 @@ Run the preflight first:
 
 ```bash
 cd jumpserver-server-login
-python3 scripts/preflight_check.py
+python3 scripts/preflight_check.py --show-state
 ```
+
+The preflight keeps a local state file at `~/.codex/state/<skill-name>/preflight.json`. Use it only for safe metadata such as last check time, pass/fail status, failed check names, host alias, and totp profile. Do not store Hostname, IdentityFile, OTP, TOTP seed values, passwords, tokens, or asset details.
 
 If a prerequisite is missing, ask about one item at a time. Do not ask for all fields at once.
 If `preflight_check.py` reports `FAIL python dependency pexpect`, do not silently install packages. Ask the user for permission, then run the initializer with apply mode:

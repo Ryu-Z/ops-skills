@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import os
 import platform
 import shutil
@@ -12,12 +13,14 @@ import stat
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 LOGIN_SCRIPT = ROOT / "scripts" / "login_jump.exp"
 VENV_PYTHON = ROOT / ".venv" / "bin" / "python"
+SKILL_FILE = ROOT / "SKILL.md"
 
 
 @dataclass
@@ -36,6 +39,61 @@ def run(command: list[str], timeout: int = 15) -> subprocess.CompletedProcess[st
         stderr=subprocess.STDOUT,
         timeout=timeout,
     )
+
+
+def skill_name() -> str:
+    if SKILL_FILE.exists():
+        for line in SKILL_FILE.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("name:"):
+                return line.split(":", 1)[1].strip()
+    return ROOT.name
+
+
+def default_state_file(name: str) -> Path:
+    base = os.environ.get("XDG_STATE_HOME")
+    if base:
+        root = Path(base)
+    else:
+        root = Path.home() / ".codex" / "state"
+    return root / name / "preflight.json"
+
+
+def read_state(path: Path) -> dict[str, object] | None:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except json.JSONDecodeError:
+        return {"schema_version": 1, "ok": False, "note": "state file is not valid JSON"}
+
+
+def write_state(path: Path, name: str, host: str, totp_profile: str, results: list["Result"]) -> None:
+    failures = [result.name for result in results if result.level == "FAIL"]
+    warnings = [result.name for result in results if result.level == "WARN"]
+    state = {
+        "schema_version": 1,
+        "skill_name": name,
+        "last_checked_at": datetime.now(UTC).isoformat(),
+        "ok": not failures,
+        "host_alias": host,
+        "totp_profile": totp_profile,
+        "failed_checks": failures,
+        "warned_checks": warnings,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def print_state_summary(path: Path, state: dict[str, object] | None) -> None:
+    if not state:
+        print(f"STATE first run: no preflight state found at {path}")
+        return
+    status = "OK" if state.get("ok") else "FAIL"
+    checked_at = state.get("last_checked_at", "unknown")
+    failures = state.get("failed_checks") or []
+    print(f"STATE previous preflight: {status} at {checked_at}")
+    if failures:
+        print(f"STATE previous failures: {', '.join(str(item) for item in failures)}")
 
 
 def command_check(name: str, required: bool = True) -> Result:
@@ -168,7 +226,15 @@ def main() -> int:
     parser.add_argument("--totp-profile", default="jumpserver", help="totp profile name. Defaults to jumpserver.")
     parser.add_argument("--skip-totp-code", action="store_true", help="Do not execute totp profile during checks.")
     parser.add_argument("--hints", action="store_true", help="Print install hints for failed checks.")
+    parser.add_argument("--no-state", action="store_true", help="Do not read or write the local preflight state file.")
+    parser.add_argument("--show-state", action="store_true", help="Print previous local preflight state before running checks.")
+    parser.add_argument("--state-file", help="Override the local preflight state file path.")
     args = parser.parse_args()
+    name = skill_name()
+    state_path = Path(args.state_file).expanduser() if args.state_file else default_state_file(name)
+
+    if not args.no_state and args.show_state:
+        print_state_summary(state_path, read_state(state_path))
 
     results = [
         command_check("ssh"),
@@ -187,6 +253,10 @@ def main() -> int:
         print(f"{result.level} {result.name}: {result.detail}")
         if args.hints and result.level == "FAIL":
             print_install_hint(result.name)
+
+    if not args.no_state:
+        write_state(state_path, name, args.host, args.totp_profile, results)
+        print(f"STATE wrote preflight result: {state_path}")
 
     return 1 if any(result.level == "FAIL" for result in results) else 0
 
